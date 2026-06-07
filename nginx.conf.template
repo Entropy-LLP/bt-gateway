@@ -47,11 +47,14 @@ http {
   limit_req_zone $binary_remote_addr zone=api_zone:20m rate=60r/m;
   limit_req_status 429;
 
-  proxy_set_header Host              $host;
   proxy_set_header X-Real-IP         $remote_addr;
   proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
   proxy_set_header X-Forwarded-Proto $scheme;
   proxy_set_header X-Request-Id      $req_id;
+
+  # TLS to upstream (Render services use https with SNI)
+  proxy_ssl_server_name on;
+  proxy_ssl_protocols   TLSv1.2 TLSv1.3;
 
   proxy_next_upstream error timeout http_502 http_503;
   proxy_next_upstream_timeout 5s;
@@ -66,6 +69,11 @@ http {
     proxy_send_timeout    30s;
     proxy_read_timeout    90s;
     proxy_intercept_errors on;
+
+    # Pass the upstream's hostname so Render routes to the correct service.
+    # proxy_set_header Host is set per-location via $proxy_host (default).
+    # Forward the original host for logging/redirects.
+    proxy_set_header X-Forwarded-Host $host;
 
     add_header X-Content-Type-Options  "nosniff" always;
     add_header X-Frame-Options         "DENY" always;
